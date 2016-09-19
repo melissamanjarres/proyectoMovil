@@ -27,29 +27,38 @@ public class jsonDecoder extends AsyncTask<Void,ArrayList<Position>, Void> {
     List<Position> position;
     MapsActivity mapa;
     private String TAG = "JsonRunning";
+    private static String Url;
 
-    public jsonDecoder(ProgressDialog pDialog, MapsActivity mapa, List<Position> position) {
+    public jsonDecoder(ProgressDialog pDialog, MapsActivity mapa, String Url, List<Position> position) {
         this.pDialog = pDialog;
         this.mapa = mapa;
         this.position = position;
+        this.Url = Url;
     }
+
 
 
     @Override
     protected Void doInBackground(Void... voids) {
         String response = getData();
-        position = new ArrayList<Position>();
         if (response != null) {
             try {
                 Log.d(TAG, response);
                 JSONObject jsonObject = new JSONObject(response);
-                JSONArray position = jsonObject.getJSONArray("result");
-                for (int i = 0; i < position.length(); i++) {
-                    JSONObject c = position.getJSONObject(i);
-                    String lt = c.getString("lt").toString();
-                    String lng = c.getString("lng").toString();
-                    position.put(new Position(lt,lng));
+                JSONArray positions = jsonObject.getJSONArray("result");
+                for (int i = 0; i < positions.length(); i++) {
+                    JSONObject c = positions.getJSONObject(i);
+                    for (int j=0; j<c.length(); j++){
+                        String lt = c.getString("lt").toString();
+                        String lng = c.getString("lng").toString();
+                        position.add(j, new Position(lt,lng));
+                    }
+
+
                 }
+
+                Log.d(TAG, position.size()+"");
+                mapa.markers.addAll(position);
 
 
 
@@ -58,7 +67,6 @@ public class jsonDecoder extends AsyncTask<Void,ArrayList<Position>, Void> {
             }
 
         }
-        Log.d(TAG, position.toString());
         return null;
     }
 
@@ -88,7 +96,7 @@ public class jsonDecoder extends AsyncTask<Void,ArrayList<Position>, Void> {
         String response = null;
         try {
             URL url = null;
-            url = new URL("http://190.144.171.172/function3.php?lat=11.0199414&lng=-74.8487154");
+            url = new URL(Url);
             URLConnection uConnect = url.openConnection();
             BufferedReader in = new BufferedReader(new InputStreamReader(uConnect.getInputStream()));
             String Line;
@@ -104,7 +112,6 @@ public class jsonDecoder extends AsyncTask<Void,ArrayList<Position>, Void> {
             return null;
         }
     }
-
     
 
 }

@@ -27,11 +27,13 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.PendingResult;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.Status;
+import com.google.android.gms.common.server.converter.StringToIntConverter;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
 import com.google.android.gms.location.LocationSettingsResult;
 import com.google.android.gms.location.LocationSettingsStatusCodes;
+import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
@@ -40,19 +42,27 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.List;
 
 
 class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationButtonClickListener, OnMapReadyCallback, ActivityCompat.OnRequestPermissionsResultCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, com.google.android.gms.location.LocationListener, ResultCallback<LocationSettingsResult> {
 
-    private static final long UPDATE_INTERVAL_IN_MILLISECONDS = 1000;
+    private static final long UPDATE_INTERVAL_IN_MILLISECONDS = 5000;
     private static final long FASTEST_UPDATE_INTERVAL_IN_MILLISENCONDS = UPDATE_INTERVAL_IN_MILLISECONDS / 2;
     private static final int MY_PERMISSION_REQUEST = 2;
     private GoogleMap mMap;
     private String TAG = "Mapa";
     List<Position> markers = new ArrayList<Position>();
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
+    private static final float MIN_DISTANCE_CHANGE_FOR_UPDATES = 5;
+    String latitud;
+    String longitud;
 
     private GoogleApiClient googleapiclient;
     private LocationRequest locationRequest;
@@ -76,10 +86,12 @@ class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationBut
         locationRequest.setInterval(UPDATE_INTERVAL_IN_MILLISECONDS);
         locationRequest.setFastestInterval(FASTEST_UPDATE_INTERVAL_IN_MILLISENCONDS);
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        locationRequest.setSmallestDisplacement(MIN_DISTANCE_CHANGE_FOR_UPDATES);
         // and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
 
 
     }
@@ -102,18 +114,38 @@ class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationBut
         LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder();
         builder.addLocationRequest(locationRequest);
         locationSettingRequest = builder.build();
-        boolean verif = VerificarRed();
-        if (verif == true) {
-            pDialogo = new ProgressDialog(this);
-            new jsonDecoder(pDialogo,this, (ArrayList<Position>) markers).execute();
-
-        }else{
-            Toast.makeText(this, "No WiFi Conexion", Toast.LENGTH_SHORT).show();
-        }
-
-
         PendingResult<LocationSettingsResult> result = LocationServices.SettingsApi.checkLocationSettings(googleapiclient, locationSettingRequest);
         result.setResultCallback(this);
+
+
+        if (googleapiclient.isConnected()) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSION_REQUEST);
+
+                return;
+            }
+
+            Location lastlocation = LocationServices.FusedLocationApi.getLastLocation(googleapiclient);
+            longitud = String.valueOf(lastlocation.getLongitude());
+            latitud = String.valueOf(lastlocation.getLatitude());
+            Log.d(TAG, longitud + " " + latitud);
+
+            boolean verif = VerificarRed();
+            if(verif){
+                pDialogo = new ProgressDialog(this);
+                new jsonDecoder(pDialogo, this, "http://190.144.171.172/function3.php?lat="+latitud+"&lng="+longitud, markers).execute();
+            }else
+                Toast.makeText(this, "No WiFi Conexion", Toast.LENGTH_SHORT).show();
+            Log.d(TAG, markers.size()+"");
+
+            for (int i=0; i<markers.size(); i++){
+                Double latitude = Double.parseDouble(markers.get(i).getLat());
+                Double longitude = Double.parseDouble(markers.get(i).getLn());
+                mMap.addMarker(new MarkerOptions().position(new LatLng(latitude,longitude)));
+
+            }
+
+        }
 
 
         // Add a marker in Sydney and move the camera
@@ -123,6 +155,8 @@ class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationBut
 
         }
         googleMap.setMyLocationEnabled(true);
+
+
 
     }
 
@@ -180,9 +214,6 @@ class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationBut
             }
             Location lastlocation = LocationServices.FusedLocationApi.getLastLocation(googleapiclient);
 
-            if (lastlocation != null) {
-
-            }
         }
 
     }
@@ -206,6 +237,8 @@ class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationBut
         if (mMap != null ) {
             currLocationMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.getLatitude(),location.getLongitude())).title("Here I'm").icon(BitmapDescriptorFactory.fromResource(R.drawable.red_sprite)));
         }
+
+
 
     }
 
