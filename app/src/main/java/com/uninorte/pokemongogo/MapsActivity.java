@@ -49,6 +49,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 
 class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationButtonClickListener, OnMapReadyCallback, ActivityCompat.OnRequestPermissionsResultCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, com.google.android.gms.location.LocationListener, ResultCallback<LocationSettingsResult> {
@@ -61,8 +62,8 @@ class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationBut
     List<Position> markers = new ArrayList<Position>();
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
     private static final float MIN_DISTANCE_CHANGE_FOR_UPDATES = 5;
-    String latitud;
-    String longitud;
+    String ubicacion;
+    List<Pokemon> pokes = new ArrayList<Pokemon>();
 
     private GoogleApiClient googleapiclient;
     private LocationRequest locationRequest;
@@ -72,7 +73,7 @@ class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationBut
     private boolean mPermissionDenied = false;
     private ProgressDialog pDialogo;
     Marker currLocationMarker;
-
+    private Context context = this;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -114,37 +115,26 @@ class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationBut
         LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder();
         builder.addLocationRequest(locationRequest);
         locationSettingRequest = builder.build();
+
+
+
+
         PendingResult<LocationSettingsResult> result = LocationServices.SettingsApi.checkLocationSettings(googleapiclient, locationSettingRequest);
         result.setResultCallback(this);
 
+        boolean verif = VerificarRed();
+        if (verif == true) {
+            pDialogo = new ProgressDialog(context);
+            new DecoderPoke(pDialogo, (MapsActivity) context, pokes).execute();
+        }else{
+            Toast.makeText(context, "No WiFi Conexion", Toast.LENGTH_SHORT).show();
+        }
 
-        if (googleapiclient.isConnected()) {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSION_REQUEST);
 
                 return;
-            }
-
-            Location lastlocation = LocationServices.FusedLocationApi.getLastLocation(googleapiclient);
-            longitud = String.valueOf(lastlocation.getLongitude());
-            latitud = String.valueOf(lastlocation.getLatitude());
-            Log.d(TAG, longitud + " " + latitud);
-
-            boolean verif = VerificarRed();
-            if(verif){
-                pDialogo = new ProgressDialog(this);
-                new jsonDecoder(pDialogo, this, "http://190.144.171.172/function3.php?lat="+latitud+"&lng="+longitud, markers).execute();
-            }else
-                Toast.makeText(this, "No WiFi Conexion", Toast.LENGTH_SHORT).show();
-            Log.d(TAG, markers.size()+"");
-
-            for (int i=0; i<markers.size(); i++){
-                Double latitude = Double.parseDouble(markers.get(i).getLat());
-                Double longitude = Double.parseDouble(markers.get(i).getLn());
-                mMap.addMarker(new MarkerOptions().position(new LatLng(latitude,longitude)));
-
-            }
-
         }
 
 
@@ -155,6 +145,9 @@ class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationBut
 
         }
         googleMap.setMyLocationEnabled(true);
+        mMap.animateCamera( CameraUpdateFactory.zoomTo( 19.0f ) );
+
+
 
 
 
@@ -213,7 +206,19 @@ class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationBut
                 return;
             }
             Location lastlocation = LocationServices.FusedLocationApi.getLastLocation(googleapiclient);
+            ubicacion = "http://190.144.171.172/function3.php?lat=" + lastlocation.getLatitude() + "&lng=" + lastlocation.getLongitude();
+            UpdateMap(ubicacion);
 
+        }
+    }
+
+    public void UpdateMap(String ubicacion){
+        boolean verif = VerificarRed();
+        if (verif == true) {
+            pDialogo = new ProgressDialog(context);
+            new jsonDecoder(pDialogo, (MapsActivity) context,markers, ubicacion).execute();
+        }else{
+            Toast.makeText(context, "No WiFi Conexion", Toast.LENGTH_SHORT).show();
         }
 
     }
@@ -230,6 +235,22 @@ class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationBut
 
     @Override
     public void onLocationChanged(Location location) {
+        Location locinit = location;
+        boolean first =true;
+        boolean paint = true;
+        boolean otro = true;
+        if(location.distanceTo(locinit)>100.0 || first){
+            UpdateMap("http://190.144.171.172/function3.php?lat="+location.getLatitude()+"&lng=" + location.getLongitude());
+            Toast.makeText(this, "YA superaste los 100m",Toast.LENGTH_SHORT).show();
+            first =false;
+            if(!markers.isEmpty()) {
+                Log.d(TAG, "Otra position");
+                for (int i = 0; i < markers.size(); i++) {
+                    mMap.addMarker(new MarkerOptions().position(new LatLng(Double.parseDouble(markers.get(i).getLat()), Double.parseDouble(markers.get(i).getLn()))).title("Here I'm"));
+                }
+            }
+            locinit = location;
+        }
         if (currLocationMarker != null) {
             currLocationMarker.remove();
         }
@@ -237,8 +258,6 @@ class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationBut
         if (mMap != null ) {
             currLocationMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.getLatitude(),location.getLongitude())).title("Here I'm").icon(BitmapDescriptorFactory.fromResource(R.drawable.red_sprite)));
         }
-
-
 
     }
 

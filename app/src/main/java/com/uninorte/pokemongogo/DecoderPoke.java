@@ -1,8 +1,6 @@
 package com.uninorte.pokemongogo;
 
 import android.app.ProgressDialog;
-import android.location.Location;
-import android.nfc.Tag;
 import android.os.AsyncTask;
 import android.util.Log;
 
@@ -17,25 +15,20 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
- * Created by admin on 13/09/16.
+ * Created by admin on 26/09/16.
  */
-public class jsonDecoder extends AsyncTask<Void,Void,List<Position>> {
+public class DecoderPoke extends AsyncTask<Void,Void,List<Pokemon>> {
     private ProgressDialog pDialog;
-    List<Position> position;
     MapsActivity mapa;
-    private String TAG = "JsonRunning";
-    private String Url;
+    private String TAG = "Json2Running";
+    List<Pokemon> pokemon;
 
-
-    public jsonDecoder(ProgressDialog pDialog, MapsActivity mapa, List<Position> position, String Url) {
+    public DecoderPoke(ProgressDialog pDialog, MapsActivity mapa, List<Pokemon> pokemon) {
         this.pDialog = pDialog;
-        this.position = position;
         this.mapa = mapa;
-        this.Url = Url;
-
+        this.pokemon = pokemon;
     }
 
     @Override
@@ -46,23 +39,22 @@ public class jsonDecoder extends AsyncTask<Void,Void,List<Position>> {
         pDialog.show();
 
     }
-
-
     @Override
-    protected List<Position> doInBackground(Void... voids) {
-        String response = getData(Url);
-        ArrayList<Position> positionI = new ArrayList<Position>();
+    protected List<Pokemon> doInBackground(Void... voids) {
+        String response = getData("http://190.144.171.172/ejemplo");
+        ArrayList<Pokemon> pokemonI = new ArrayList<Pokemon>();
         if (response != null) {
             try {
                 Log.d(TAG, response);
                 JSONObject jsonObject = new JSONObject(response);
-                JSONArray positions = jsonObject.getJSONArray("result");
-                for (int i = 0; i < positions.length(); i++) {
-                    JSONObject c = positions.getJSONObject(i);
+                JSONArray poke = jsonObject.getJSONArray("result");
+                for (int i = 0; i < poke.length(); i++) {
+                    JSONObject c = poke.getJSONObject(i);
                     for (int j=0; j<c.length(); j++){
-                        String lt = c.getString("lt").toString();
-                        String lng = c.getString("lng").toString();
-                        positionI.add( j, new Position(lt,lng));
+                        String id = c.getString("id").toString();
+                        String name = c.getString("name").toString();
+                        String ImgFront = c.getString("ImgFront").toString();
+                        pokemonI.add( j, new Pokemon(id,name, ImgFront));
                     }
 
 
@@ -72,16 +64,14 @@ public class jsonDecoder extends AsyncTask<Void,Void,List<Position>> {
             }
 
         }
-        return positionI;
+        return pokemonI;
     }
 
-
-
     @Override
-    protected void onPostExecute(List<Position> aVoid) {
+    protected void onPostExecute(List<Pokemon> aVoid) {
         super.onPostExecute(aVoid);
-        position.addAll(aVoid);
-        Log.d(TAG,mapa.markers.size()+"");
+        pokemon.addAll(aVoid);
+        Log.d(TAG,mapa.pokes.size()+"");
         if (pDialog.isShowing()){
             pDialog.dismiss();
         }
@@ -109,6 +99,4 @@ public class jsonDecoder extends AsyncTask<Void,Void,List<Position>> {
             return null;
         }
     }
-    
-
 }
