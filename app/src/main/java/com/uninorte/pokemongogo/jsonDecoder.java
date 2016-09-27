@@ -54,18 +54,13 @@ public class jsonDecoder extends AsyncTask<Void,Void,List<Position>> {
         ArrayList<Position> positionI = new ArrayList<Position>();
         if (response != null) {
             try {
-                Log.d(TAG, response);
+                Log.d(TAG,response);
                 JSONObject jsonObject = new JSONObject(response);
                 JSONArray positions = jsonObject.getJSONArray("result");
                 for (int i = 0; i < positions.length(); i++) {
                     JSONObject c = positions.getJSONObject(i);
-                    for (int j=0; j<c.length(); j++){
-                        String lt = c.getString("lt").toString();
-                        String lng = c.getString("lng").toString();
-                        positionI.add( j, new Position(lt,lng));
-                    }
-
-
+                    Log.d(TAG,c.toString());
+                    positionI.add(i, new Position(c.getString("lt"),c.getString("lng")));
                 }
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -81,7 +76,6 @@ public class jsonDecoder extends AsyncTask<Void,Void,List<Position>> {
     protected void onPostExecute(List<Position> aVoid) {
         super.onPostExecute(aVoid);
         position.addAll(aVoid);
-        Log.d(TAG,mapa.markers.size()+"");
         if (pDialog.isShowing()){
             pDialog.dismiss();
         }
@@ -89,25 +83,24 @@ public class jsonDecoder extends AsyncTask<Void,Void,List<Position>> {
 
     }
 
-    protected static String getData(String Url){
-        String response = null;
-        try {
-            URL url = null;
-            url = new URL(Url);
-            URLConnection uConnect = url.openConnection();
-            BufferedReader in = new BufferedReader(new InputStreamReader(uConnect.getInputStream()));
-            String Line;
-            while ((Line = in.readLine()) != null){
-                response = Line;
+    private static String getData(String URL){
+        String response = "{'results':";
+        try{
+            java.net.URL url = new URL(URL);
+            URLConnection urlConnection = url.openConnection();
+            BufferedReader in = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
+            String line;
+            while((line= in.readLine()) != null){
+                response = line;
             }
-            response ="{'result':"+response+"}";
             in.close();
+            response ="{'result':"+response+"}";
             return response;
-
-        }catch (IOException e){
+        }catch (Exception e){
             e.printStackTrace();
-            return null;
+            return response;
         }
+
     }
     
 

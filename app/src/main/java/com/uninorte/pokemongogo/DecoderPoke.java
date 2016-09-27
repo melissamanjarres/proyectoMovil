@@ -41,7 +41,7 @@ public class DecoderPoke extends AsyncTask<Void,Void,List<Pokemon>> {
     }
     @Override
     protected List<Pokemon> doInBackground(Void... voids) {
-        String response = getData("http://190.144.171.172/ejemplo");
+        String response = getData("https://raw.githubusercontent.com/FTorrenegraG/Pokemon_json_example/master/example.json");
         ArrayList<Pokemon> pokemonI = new ArrayList<Pokemon>();
         if (response != null) {
             try {
@@ -50,19 +50,16 @@ public class DecoderPoke extends AsyncTask<Void,Void,List<Pokemon>> {
                 JSONArray poke = jsonObject.getJSONArray("result");
                 for (int i = 0; i < poke.length(); i++) {
                     JSONObject c = poke.getJSONObject(i);
-                    for (int j=0; j<c.length(); j++){
-                        String id = c.getString("id").toString();
-                        String name = c.getString("name").toString();
-                        String ImgFront = c.getString("ImgFront").toString();
-                        pokemonI.add( j, new Pokemon(id,name, ImgFront));
-                    }
-
-
+                    Log.d(TAG, c.toString());
+                    String id = c.getString("Id").toString();
+                    String name = c.getString("Name").toString();
+                    String ImgFront = c.getString("ImgFront").toString();
+                    pokemonI.add(i, new Pokemon(id,name, ImgFront));
                 }
             } catch (JSONException e) {
                 e.printStackTrace();
             }
-
+            Log.d(TAG,""+pokemonI.size());
         }
         return pokemonI;
     }
@@ -71,7 +68,6 @@ public class DecoderPoke extends AsyncTask<Void,Void,List<Pokemon>> {
     protected void onPostExecute(List<Pokemon> aVoid) {
         super.onPostExecute(aVoid);
         pokemon.addAll(aVoid);
-        Log.d(TAG,mapa.pokes.size()+"");
         if (pDialog.isShowing()){
             pDialog.dismiss();
         }
@@ -80,7 +76,7 @@ public class DecoderPoke extends AsyncTask<Void,Void,List<Pokemon>> {
     }
 
     protected static String getData(String Url){
-        String response = null;
+        String response = "";
         try {
             URL url = null;
             url = new URL(Url);
@@ -88,7 +84,7 @@ public class DecoderPoke extends AsyncTask<Void,Void,List<Pokemon>> {
             BufferedReader in = new BufferedReader(new InputStreamReader(uConnect.getInputStream()));
             String Line;
             while ((Line = in.readLine()) != null){
-                response = Line;
+                response += Line;
             }
             response ="{'result':"+response+"}";
             in.close();

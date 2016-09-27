@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.location.Location;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -49,6 +50,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ExecutionException;
 
 
@@ -64,6 +66,8 @@ class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationBut
     private static final float MIN_DISTANCE_CHANGE_FOR_UPDATES = 5;
     String ubicacion;
     List<Pokemon> pokes = new ArrayList<Pokemon>();
+    Location locinit;
+
 
     private GoogleApiClient googleapiclient;
     private LocationRequest locationRequest;
@@ -74,6 +78,8 @@ class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationBut
     private ProgressDialog pDialogo;
     Marker currLocationMarker;
     private Context context = this;
+    Bitmap bmImg;
+    boolean first =true;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -124,11 +130,14 @@ class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationBut
 
         boolean verif = VerificarRed();
         if (verif == true) {
+            pokes.clear();
             pDialogo = new ProgressDialog(context);
             new DecoderPoke(pDialogo, (MapsActivity) context, pokes).execute();
         }else{
             Toast.makeText(context, "No WiFi Conexion", Toast.LENGTH_SHORT).show();
         }
+
+
 
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -207,16 +216,23 @@ class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationBut
             }
             Location lastlocation = LocationServices.FusedLocationApi.getLastLocation(googleapiclient);
             ubicacion = "http://190.144.171.172/function3.php?lat=" + lastlocation.getLatitude() + "&lng=" + lastlocation.getLongitude();
-            UpdateMap(ubicacion);
+            try {
+                UpdateMap(ubicacion);
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
 
         }
     }
 
-    public void UpdateMap(String ubicacion){
+    public void UpdateMap(String ubicacion) throws ExecutionException, InterruptedException {
+        markers.clear();
         boolean verif = VerificarRed();
         if (verif == true) {
             pDialogo = new ProgressDialog(context);
-            new jsonDecoder(pDialogo, (MapsActivity) context,markers, ubicacion).execute();
+            new jsonDecoder(pDialogo, (MapsActivity) context,markers, ubicacion).execute().get();
         }else{
             Toast.makeText(context, "No WiFi Conexion", Toast.LENGTH_SHORT).show();
         }
@@ -235,22 +251,41 @@ class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationBut
 
     @Override
     public void onLocationChanged(Location location) {
-        Location locinit = location;
-        boolean first =true;
-        boolean paint = true;
-        boolean otro = true;
-        if(location.distanceTo(locinit)>100.0 || first){
-            UpdateMap("http://190.144.171.172/function3.php?lat="+location.getLatitude()+"&lng=" + location.getLongitude());
-            Toast.makeText(this, "YA superaste los 100m",Toast.LENGTH_SHORT).show();
+        Log.d(TAG, location.toString());
+        if((first == true && !markers.isEmpty()) || locinit!=null && location.distanceTo(locinit)> 100){
             first =false;
-            if(!markers.isEmpty()) {
-                Log.d(TAG, "Otra position");
-                for (int i = 0; i < markers.size(); i++) {
-                    mMap.addMarker(new MarkerOptions().position(new LatLng(Double.parseDouble(markers.get(i).getLat()), Double.parseDouble(markers.get(i).getLn()))).title("Here I'm"));
+            if(locinit!=null && location.distanceTo(locinit) > 100.0){
+                try {
+                    UpdateMap("http://190.144.171.172/function3.php?lat="+location.getLatitude()+"&lng=" + location.getLongitude());
+                    Toast.makeText(this, "YA superaste los 100m",Toast.LENGTH_SHORT).show();
+                } catch (ExecutionException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
             }
+                if(!markers.isEmpty()) {
+                    for (int i=0; i<markers.size(); i++) {
+                        try {
+                            int index = new Random().nextInt(pokes.size());
+                            Bitmap bmImg = null;
+                            bmImg = new BitMapDeco(pokes.get(index).getImgFront()).execute().get();
+                            mMap.addMarker(new MarkerOptions().position(new LatLng(Double.parseDouble(markers.get(i).getLat()),Double.parseDouble(markers.get(i).getLn()))).icon(BitmapDescriptorFactory.fromBitmap(bmImg)));
+
+
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        } catch (ExecutionException e) {
+                            e.printStackTrace();
+                        }
+
+                    }
+
+                }
             locinit = location;
-        }
+            }
+
+
         if (currLocationMarker != null) {
             currLocationMarker.remove();
         }
@@ -258,6 +293,7 @@ class MapsActivity extends FragmentActivity implements GoogleMap.OnMyLocationBut
         if (mMap != null ) {
             currLocationMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(location.getLatitude(),location.getLongitude())).title("Here I'm").icon(BitmapDescriptorFactory.fromResource(R.drawable.red_sprite)));
         }
+
 
     }
 
